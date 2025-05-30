@@ -7,22 +7,74 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Search, Edit, Lock, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Users, Search, Edit, Lock, UserPlus, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const userFormSchema = z.object({
+  username: z.string().min(3, "用户名至少3个字符").max(50, "用户名不能超过50个字符"),
+  email: z.string().email("请输入有效的邮箱地址"),
+  firstName: z.string().min(1, "请输入名字"),
+  lastName: z.string().min(1, "请输入姓氏"),
+  role: z.enum(["admin", "operator", "readonly"], {
+    required_error: "请选择用户角色",
+  }),
+  password: z.string().min(6, "密码至少6个字符"),
+});
+
+type UserFormData = z.infer<typeof userFormSchema>;
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
+  const form = useForm<UserFormData>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      firstName: "",
+      lastName: "",
+      role: "readonly",
+      password: "",
+    },
+  });
+
   const { data: users, isLoading } = useQuery({
     queryKey: ["/api/users"],
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: UserFormData) => {
+      return apiRequest("POST", "/api/users", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsAddUserDialogOpen(false);
+      form.reset();
+      toast({
+        title: "用户创建成功",
+        description: "新用户已成功添加到系统中",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "创建失败",
+        description: error.message || "创建用户时发生错误",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateUserRoleMutation = useMutation({
@@ -65,6 +117,10 @@ export default function UserManagement() {
       });
     },
   });
+
+  const onSubmit = (data: UserFormData) => {
+    createUserMutation.mutate(data);
+  };
 
   const getRoleBadge = (role: string) => {
     const variants = {
@@ -185,18 +241,127 @@ export default function UserManagement() {
               <Users className="w-6 h-6 mr-2" />
               用户管理
             </CardTitle>
-            <Button 
-              disabled={currentUser?.role !== "admin"}
-              onClick={() => {
-                toast({
-                  title: "功能开发中",
-                  description: "添加用户功能正在开发中",
-                });
-              }}
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              添加用户
-            </Button>
+            <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={currentUser?.role !== "admin"}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  添加用户
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>添加新用户</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>用户名</FormLabel>
+                          <FormControl>
+                            <Input placeholder="请输入用户名" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>邮箱</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="请输入邮箱地址" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>名字</FormLabel>
+                            <FormControl>
+                              <Input placeholder="请输入名字" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>姓氏</FormLabel>
+                            <FormControl>
+                              <Input placeholder="请输入姓氏" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>用户角色</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择用户角色" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="admin">系统管理员</SelectItem>
+                              <SelectItem value="operator">运维人员</SelectItem>
+                              <SelectItem value="readonly">只读用户</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>密码</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="请输入密码" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setIsAddUserDialogOpen(false)}
+                      >
+                        取消
+                      </Button>
+                      <Button type="submit" disabled={createUserMutation.isPending}>
+                        {createUserMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        创建用户
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         

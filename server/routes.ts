@@ -369,6 +369,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/users", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      if (currentUser?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { username, email, firstName, lastName, role, password } = req.body;
+      
+      // 检查用户名是否已存在
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "用户名已存在" });
+      }
+      
+      // 创建新用户
+      const user = await storage.createUser({
+        username,
+        email,
+        firstName,
+        lastName,
+        role,
+        password,
+        isActive: true
+      });
+      
+      await storage.createAuditLog({
+        userId: req.user?.claims?.sub,
+        action: "CREATE_USER",
+        resource: "user",
+        resourceId: user.id,
+        details: { username, role },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
   // Detection rules routes
   app.get("/api/detection-rules", isAuthenticated, async (req, res) => {
     try {
