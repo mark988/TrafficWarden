@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 11% 98%; /* #F5F7FA */
+  --foreground: 222 84% 4.9%; /* #020817 */
+  --muted: 210 40% 96%; /* #F1F5F9 */
+  --muted-foreground: 215.4 16.3% 46.9%; /* #64748B */
+  --popover: 0 0% 100%; /* #FFFFFF */
+  --popover-foreground: 222 84% 4.9%; /* #020817 */
+  --card: 0 0% 100%; /* #FFFFFF */
+  --card-foreground: 222 84% 4.9%; /* #020817 */
+  --border: 214.3 31.8% 91.4%; /* #E2E8F0 */
+  --input: 214.3 31.8% 91.4%; /* #E2E8F0 */
+  --primary: 221 83% 53%; /* #3B82F6 */
+  --primary-foreground: 210 40% 98%; /* #F8FAFC */
+  --secondary: 210 40% 96%; /* #F1F5F9 */
+  --secondary-foreground: 222 84% 4.9%; /* #020817 */
+  --accent: 142 76% 36%; /* #10B981 */
+  --accent-foreground: 355 7% 97%; /* #F8F9FA */
+  --destructive: 0 84% 60%; /* #EF4444 */
+  --destructive-foreground: 210 40% 98%; /* #F8FAFC */
+  --warning: 38 92% 50%; /* #F59E0B */
+  --warning-foreground: 48 96% 89%; /* #FEF3C7 */
+  --ring: 221 83% 53%; /* #3B82F6 */
+  --sidebar-background: 222 84% 15%; /* #1F2937 */
+  --sidebar-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-primary: 221 83% 53%; /* #3B82F6 */
+  --sidebar-primary-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-accent: 217 32% 17%; /* #374151 */
+  --sidebar-accent-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-border: 217 32% 17%; /* #374151 */
+  --sidebar-ring: 221 83% 53%; /* #3B82F6 */
+  --chart-1: 221 83% 53%; /* #3B82F6 */
+  --chart-2: 142 76% 36%; /* #10B981 */
+  --chart-3: 38 92% 50%; /* #F59E0B */
+  --chart-4: 0 84% 60%; /* #EF4444 */
+  --chart-5: 263 70% 50%; /* #8B5CF6 */
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222 84% 4.9%; /* #020817 */
+  --foreground: 210 40% 98%; /* #F8FAFC */
+  --muted: 217 32% 17%; /* #374151 */
+  --muted-foreground: 215 20% 65%; /* #94A3B8 */
+  --popover: 222 84% 4.9%; /* #020817 */
+  --popover-foreground: 210 40% 98%; /* #F8FAFC */
+  --card: 222 84% 4.9%; /* #020817 */
+  --card-foreground: 210 40% 98%; /* #F8FAFC */
+  --border: 217 32% 17%; /* #374151 */
+  --input: 217 32% 17%; /* #374151 */
+  --primary: 221 83% 53%; /* #3B82F6 */
+  --primary-foreground: 210 40% 98%; /* #F8FAFC */
+  --secondary: 217 32% 17%; /* #374151 */
+  --secondary-foreground: 210 40% 98%; /* #F8FAFC */
+  --accent: 142 76% 36%; /* #10B981 */
+  --accent-foreground: 222 84% 4.9%; /* #020817 */
+  --destructive: 0 63% 31%; /* #B91C1C */
+  --destructive-foreground: 210 40% 98%; /* #F8FAFC */
+  --warning: 38 92% 50%; /* #F59E0B */
+  --warning-foreground: 222 84% 4.9%; /* #020817 */
+  --ring: 221 83% 53%; /* #3B82F6 */
+  --sidebar-background: 222 84% 4.9%; /* #020817 */
+  --sidebar-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-primary: 221 83% 53%; /* #3B82F6 */
+  --sidebar-primary-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-accent: 217 32% 17%; /* #374151 */
+  --sidebar-accent-foreground: 210 40% 98%; /* #F8FAFC */
+  --sidebar-border: 217 32% 17%; /* #374151 */
+  --sidebar-ring: 221 83% 53%; /* #3B82F6 */
+  --chart-1: 221 83% 53%; /* #3B82F6 */
+  --chart-2: 142 76% 36%; /* #10B981 */
+  --chart-3: 38 92% 50%; /* #F59E0B */
+  --chart-4: 0 84% 60%; /* #EF4444 */
+  --chart-5: 263 70% 50%; /* #8B5CF6 */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .nav-item {
+    @apply flex items-center px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors;
+  }
+
+  .nav-item.active {
+    @apply bg-primary text-white;
+  }
+
+  .status-indicator {
+    @apply w-2 h-2 rounded-full mr-2;
+  }
+
+  .status-online {
+    @apply bg-accent animate-pulse;
+  }
+
+  .status-offline {
+    @apply bg-destructive;
+  }
+
+  .status-error {
+    @apply bg-warning;
+  }
+
+  .alert-high {
+    @apply bg-red-50 border-red-200 text-red-800;
+  }
+
+  .alert-medium {
+    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
+  }
+
+  .alert-low {
+    @apply bg-blue-50 border-blue-200 text-blue-800;
+  }
+
+  .severity-badge-high {
+    @apply px-2 py-1 bg-destructive text-destructive-foreground text-xs rounded-full;
+  }
+
+  .severity-badge-medium {
+    @apply px-2 py-1 bg-warning text-warning-foreground text-xs rounded-full;
+  }
+
+  .severity-badge-low {
+    @apply px-2 py-1 bg-primary text-primary-foreground text-xs rounded-full;
+  }
+
+  .role-badge-admin {
+    @apply px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full;
+  }
+
+  .role-badge-operator {
+    @apply px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full;
+  }
+
+  .role-badge-readonly {
+    @apply px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full;
+  }
+}
