@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings, Plus, Search, Edit, Trash2, Play, Pause } from "lucide-react";
+import { Settings, Plus, Search, Edit, Trash2, Play, Pause, Loader2, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,6 +33,8 @@ export default function DetectionRules() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
+  const [deleteRuleId, setDeleteRuleId] = useState<number | null>(null);
+  const [toggleRuleId, setToggleRuleId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const { data: rules, isLoading } = useQuery({
@@ -54,6 +57,71 @@ export default function DetectionRules() {
       toast({
         title: "创建失败",
         description: error.message || "创建检测规则时发生错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateRuleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: RuleFormData }) => {
+      return apiRequest("PUT", `/api/detection-rules/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/detection-rules"] });
+      setEditingRule(null);
+      toast({
+        title: "规则更新成功",
+        description: "检测规则已成功更新",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "更新失败",
+        description: error.message || "更新检测规则时发生错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleRuleStatusMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
+      return apiRequest("PATCH", `/api/detection-rules/${id}/toggle`, { isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/detection-rules"] });
+      setToggleRuleId(null);
+      toast({
+        title: "状态更新成功",
+        description: "规则状态已成功切换",
+      });
+    },
+    onError: (error) => {
+      setToggleRuleId(null);
+      toast({
+        title: "状态更新失败",
+        description: error.message || "切换规则状态时发生错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/detection-rules/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/detection-rules"] });
+      setDeleteRuleId(null);
+      toast({
+        title: "规则删除成功",
+        description: "检测规则已成功删除",
+      });
+    },
+    onError: (error) => {
+      setDeleteRuleId(null);
+      toast({
+        title: "删除失败",
+        description: error.message || "删除检测规则时发生错误",
         variant: "destructive",
       });
     },
@@ -82,7 +150,25 @@ export default function DetectionRules() {
         ...data.conditions,
       },
     };
-    addRuleMutation.mutate(ruleData);
+    
+    if (editingRule) {
+      updateRuleMutation.mutate({ id: editingRule.id, data: ruleData });
+    } else {
+      addRuleMutation.mutate(ruleData);
+    }
+  };
+
+  // 编辑规则时填充表单
+  const handleEditRule = (rule: any) => {
+    setEditingRule(rule);
+    form.reset({
+      name: rule.name,
+      description: rule.description || "",
+      ruleType: rule.ruleType,
+      severity: rule.severity,
+      isActive: rule.isActive,
+      conditions: rule.conditions || {},
+    });
   };
 
   const getSeverityBadge = (severity: string) => {
@@ -368,34 +454,38 @@ export default function DetectionRules() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={toggleRuleId === rule.id}
                             onClick={() => {
-                              // Toggle rule status
-                              toast({
-                                title: "功能开发中",
-                                description: "规则状态切换功能正在开发中",
+                              setToggleRuleId(rule.id);
+                              toggleRuleStatusMutation.mutate({ 
+                                id: rule.id, 
+                                isActive: !rule.isActive 
                               });
                             }}
+                            className={`${rule.isActive ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'} 
+                                       ${toggleRuleId === rule.id ? 'animate-pulse' : ''}`}
                           >
-                            {rule.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                            {toggleRuleId === rule.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : rule.isActive ? (
+                              <Pause className="w-4 h-4" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setEditingRule(rule)}
+                            onClick={() => handleEditRule(rule)}
+                            className="text-blue-600 hover:text-blue-700"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              if (confirm("确定要删除这个规则吗？此操作不可撤销。")) {
-                                toast({
-                                  title: "功能开发中",
-                                  description: "规则删除功能正在开发中",
-                                });
-                              }
-                            }}
+                            onClick={() => setDeleteRuleId(rule.id)}
+                            className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -409,6 +499,48 @@ export default function DetectionRules() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={deleteRuleId !== null} onOpenChange={(open) => !open && setDeleteRuleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+              确认删除规则
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              您即将删除检测规则"{deleteRuleId && rules?.find((r: any) => r.id === deleteRuleId)?.name}"。
+              <br />
+              <span className="text-red-600 font-medium">此操作无法撤销，删除后所有相关的检测历史和配置都将丢失。</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setDeleteRuleId(null)}
+              disabled={deleteRuleMutation.isPending}
+            >
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteRuleId && deleteRuleMutation.mutate(deleteRuleId)}
+              disabled={deleteRuleMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleteRuleMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  确认删除
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
