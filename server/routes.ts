@@ -1,7 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth } from "./replitAuth";
+
+// Simple session-based authentication middleware
+const isAuthenticated = (req: any, res: any, next: any) => {
+  const session = req.session as any;
+  if (!session.userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+};
 import { insertDeviceSchema, insertAlertSchema, insertDetectionRuleSchema, insertSystemConfigSchema } from "@shared/schema";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 
@@ -9,11 +19,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Local authentication routes
+  app.post('/api/auth/login', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ message: "用户名和密码不能为空" });
+      }
+
+      // 查找用户
+      const user = await storage.getUserByUsername(username);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: "用户名或密码错误" });
+      }
+
+      // 验证密码
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "用户名或密码错误" });
+      }
+
+      // 设置session
+      (req.session as any).userId = user.id;
+      (req.session as any).username = user.username;
+      (req.session as any).role = user.role;
+
+      res.json({ 
+        message: "登录成功",
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "登录过程中发生错误" });
+    }
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "登出失败" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ message: "登出成功" });
+    });
+  });
+
+  // Auth routes
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      // 检查session中的用户信息
+      const session = req.session as any;
+      if (!session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
