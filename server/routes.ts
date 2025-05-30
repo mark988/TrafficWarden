@@ -408,18 +408,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/detection-rules/:id/toggle", isAuthenticated, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.user?.claims?.sub);
-      if (currentUser?.role !== "admin" && currentUser?.role !== "operator") {
+      const sessionData = req.session as any;
+      if (sessionData?.role !== "admin" && sessionData?.role !== "operator") {
         return res.status(403).json({ message: "Access denied" });
       }
       
       const ruleId = parseInt(req.params.id);
       const { isActive } = req.body;
       
-      const updatedRule = await storage.updateDetectionRule(ruleId, { isActive });
+      // Get current rule first to preserve other fields
+      const currentRule = await storage.getAllDetectionRules();
+      const existingRule = currentRule.find(r => r.id === ruleId);
+      if (!existingRule) {
+        return res.status(404).json({ message: "Rule not found" });
+      }
+      
+      const updatedRule = await storage.updateDetectionRule(ruleId, {
+        ...existingRule,
+        isActive
+      });
       
       await storage.createAuditLog({
-        userId: req.user?.claims?.sub,
+        userId: sessionData.userId,
         action: isActive ? "ENABLE_DETECTION_RULE" : "DISABLE_DETECTION_RULE",
         resource: "detection_rule",
         resourceId: ruleId.toString(),
