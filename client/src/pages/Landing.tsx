@@ -1,10 +1,50 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Shield, Activity, Users, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Shield, Activity, Users, AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
+
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      return apiRequest("POST", "/api/auth/login", credentials);
+    },
+    onSuccess: () => {
+      toast({
+        title: "登录成功",
+        description: "欢迎使用异常流量监控系统",
+      });
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "登录失败",
+        description: error.message || "用户名或密码错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      toast({
+        title: "输入错误",
+        description: "请输入用户名和密码",
+        variant: "destructive",
+      });
+      return;
+    }
+    loginMutation.mutate({ username: username.trim(), password });
   };
 
   return (
@@ -78,18 +118,73 @@ export default function Landing() {
                 </p>
               </div>
 
-              <Button 
-                onClick={handleLogin} 
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
-                size="lg"
-              >
-                <Shield className="w-5 h-5 mr-2" />
-                登录系统
-              </Button>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">用户名</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="请输入用户名"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={loginMutation.isPending}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">密码</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="请输入密码"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loginMutation.isPending}
+                      className="w-full pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={loginMutation.isPending}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-400" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+                  size="lg"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      登录中...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-5 h-5 mr-2" />
+                      登录系统
+                    </>
+                  )}
+                </Button>
+              </form>
 
               <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
                 <p>系统状态: <span className="text-green-600 dark:text-green-400">正常运行</span></p>
                 <p className="mt-1">版本: TADS v2.1</p>
+                <p className="mt-2 text-xs">默认账户: admin / 123456</p>
               </div>
             </CardContent>
           </Card>
