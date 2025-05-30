@@ -298,7 +298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes (admin only)
   app.get("/api/users", isAuthenticated, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      const session = req.session as any;
+      const currentUser = await storage.getUser(session.userId);
       if (currentUser?.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -313,7 +314,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/users/:id/role", isAuthenticated, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      const session = req.session as any;
+      const currentUser = await storage.getUser(session.userId);
       if (currentUser?.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -324,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.updateUserRole(userId, role);
       
       await storage.createAuditLog({
-        userId: req.user?.claims?.sub,
+        userId: session.userId,
         action: "UPDATE_USER_ROLE",
         resource: "user",
         resourceId: userId,
@@ -342,7 +344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/users/:id/status", isAuthenticated, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      const session = req.session as any;
+      const currentUser = await storage.getUser(session.userId);
       if (currentUser?.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -353,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.updateUserStatus(userId, isActive);
       
       await storage.createAuditLog({
-        userId: req.user?.claims?.sub,
+        userId: session.userId,
         action: "UPDATE_USER_STATUS",
         resource: "user",
         resourceId: userId,
@@ -371,7 +374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", isAuthenticated, async (req, res) => {
     try {
-      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      const session = req.session as any;
+      const currentUser = await storage.getUser(session.userId);
       if (currentUser?.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -384,8 +388,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "用户名已存在" });
       }
       
-      // 创建新用户
-      const user = await storage.createUser({
+      // 创建新用户 - 使用 upsertUser since createUser doesn't exist
+      const user = await storage.upsertUser({
+        id: `USR${Date.now()}`,
         username,
         email,
         firstName,
@@ -396,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       await storage.createAuditLog({
-        userId: req.user?.claims?.sub,
+        userId: session.userId,
         action: "CREATE_USER",
         resource: "user",
         resourceId: user.id,
