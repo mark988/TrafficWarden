@@ -133,10 +133,34 @@ export default function LogAudit() {
               <FileText className="w-6 h-6 mr-2" />
               日志审计
             </CardTitle>
-            <Button onClick={exportLogs} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              导出日志
-            </Button>
+            <div className="flex flex-col items-end space-y-2">
+              <Button 
+                onClick={exportLogs} 
+                variant="outline" 
+                disabled={isExporting}
+                className="min-w-[120px]"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    导出中...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    导出日志
+                  </>
+                )}
+              </Button>
+              {isExporting && (
+                <div className="w-32">
+                  <Progress value={exportProgress} className="h-2" />
+                  <div className="text-xs text-gray-500 mt-1 text-center">
+                    {exportProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </CardHeader>
         
@@ -153,7 +177,21 @@ export default function LogAudit() {
               />
             </div>
             
-            <Select value={actionFilter} onValueChange={setActionFilter}>
+            <Select 
+              value={actionFilter} 
+              onValueChange={(value) => {
+                setActionFilter(value);
+                // 手动触发缓存更新而不是重新渲染整页
+                const newQueryKey = ["/api/audit-logs", { 
+                  page: currentPage, 
+                  limit: 50,
+                  action: value === "all" ? undefined : value,
+                  startDate: startDate?.toISOString(),
+                  endDate: endDate?.toISOString(),
+                }];
+                queryClient.invalidateQueries({ queryKey: ["/api/audit-logs"] });
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="操作类型" />
               </SelectTrigger>
