@@ -417,6 +417,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const session = req.session as any;
+      const currentUser = await storage.getUser(session.userId);
+      if (currentUser?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const userId = req.params.id;
+      
+      // 防止删除自己的账户
+      if (userId === session.userId) {
+        return res.status(400).json({ message: "不能删除自己的账户" });
+      }
+      
+      // 获取要删除的用户信息用于日志记录
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        return res.status(404).json({ message: "用户不存在" });
+      }
+      
+      // 删除用户
+      await storage.deleteUser(userId);
+      
+      await storage.createAuditLog({
+        userId: session.userId,
+        action: "DELETE_USER",
+        resource: "user",
+        resourceId: userId,
+        details: { username: userToDelete.username, role: userToDelete.role },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      
+      res.json({ message: "用户删除成功" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Detection rules routes
   app.get("/api/detection-rules", isAuthenticated, async (req, res) => {
     try {

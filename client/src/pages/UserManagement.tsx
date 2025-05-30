@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Users, Search, Edit, Lock, UserPlus, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Users, Search, Edit, Lock, UserPlus, Loader2, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -120,6 +121,38 @@ export default function UserManagement() {
 
   const onSubmit = (data: UserFormData) => {
     createUserMutation.mutate(data);
+  };
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "用户删除成功",
+        description: "用户已从系统中删除",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "删除失败",
+        description: error.message || "删除用户时发生错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteUser = (userId: string, username: string) => {
+    if (userId === currentUser?.id) {
+      toast({
+        title: "操作被拒绝",
+        description: "您不能删除自己的账户",
+        variant: "destructive",
+      });
+      return;
+    }
+    deleteUserMutation.mutate(userId);
   };
 
   const getRoleBadge = (role: string) => {
@@ -504,6 +537,38 @@ export default function UserManagement() {
                           >
                             <Lock className="w-4 h-4" />
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={user.id === currentUser?.id || currentUser?.role !== "admin"}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>确认删除用户</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  您确定要删除用户 "{getUserDisplayName(user)}" 吗？此操作无法撤销。
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>取消</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.id, user.username)}
+                                  disabled={deleteUserMutation.isPending}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  {deleteUserMutation.isPending && (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  )}
+                                  删除
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

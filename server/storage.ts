@@ -32,6 +32,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<User>;
   updateUserStatus(userId: string, isActive: boolean): Promise<User>;
+  deleteUser(userId: string): Promise<void>;
 
   // Device operations
   getAllDevices(): Promise<Device[]>;
@@ -130,6 +131,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, userId));
   }
 
   // Device operations
