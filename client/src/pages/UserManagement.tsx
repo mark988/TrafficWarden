@@ -185,7 +185,15 @@ export default function UserManagement() {
               <Users className="w-6 h-6 mr-2" />
               用户管理
             </CardTitle>
-            <Button disabled>
+            <Button 
+              disabled={currentUser?.role !== "admin"}
+              onClick={() => {
+                toast({
+                  title: "功能开发中",
+                  description: "添加用户功能正在开发中",
+                });
+              }}
+            >
               <UserPlus className="w-4 h-4 mr-2" />
               添加用户
             </Button>
