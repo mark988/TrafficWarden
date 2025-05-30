@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -227,10 +228,12 @@ export default function Dashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>最新告警</CardTitle>
-              <Button variant="ghost" size="sm">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                查看全部
-              </Button>
+              <Link href="/alerts">
+                <Button variant="ghost" size="sm">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  查看全部
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
