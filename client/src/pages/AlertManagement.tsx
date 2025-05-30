@@ -21,6 +21,14 @@ export default function AlertManagement() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showNewRuleDialog, setShowNewRuleDialog] = useState(false);
+  const [newRuleForm, setNewRuleForm] = useState({
+    name: "",
+    description: "",
+    ruleType: "traffic",
+    severity: "medium" as const,
+    conditions: ""
+  });
   const { toast } = useToast();
 
   const { data: alertStats, isLoading: statsLoading } = useQuery({
@@ -155,6 +163,51 @@ export default function AlertManagement() {
     }
   };
 
+  // 创建新规则的mutation
+  const createRuleMutation = useMutation({
+    mutationFn: async (ruleData: typeof newRuleForm) => {
+      return apiRequest("POST", "/api/detection-rules", {
+        ...ruleData,
+        conditions: JSON.parse(ruleData.conditions || "{}")
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "创建成功",
+        description: "检测规则已成功创建",
+      });
+      setShowNewRuleDialog(false);
+      setNewRuleForm({
+        name: "",
+        description: "",
+        ruleType: "traffic",
+        severity: "medium",
+        conditions: ""
+      });
+      // 这里可以刷新规则列表，如果需要的话
+    },
+    onError: (error: any) => {
+      toast({
+        title: "创建失败",
+        description: error.message || "创建检测规则时发生错误",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateRule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRuleForm.name.trim() || !newRuleForm.description.trim()) {
+      toast({
+        title: "输入错误",
+        description: "请填写规则名称和描述",
+        variant: "destructive",
+      });
+      return;
+    }
+    createRuleMutation.mutate(newRuleForm);
+  };
+
   const getSeverityBadge = (severity: string) => {
     const variants = {
       high: { className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", label: "高危" },
@@ -227,7 +280,10 @@ export default function AlertManagement() {
               告警管理
             </CardTitle>
             <div className="flex items-center space-x-4">
-              <Button variant="outline">
+              <Button 
+                variant="outline"
+                onClick={() => setShowNewRuleDialog(true)}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 新建规则
               </Button>
@@ -410,6 +466,116 @@ export default function AlertManagement() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 新建规则对话框 */}
+      <Dialog open={showNewRuleDialog} onOpenChange={setShowNewRuleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Plus className="w-5 h-5 mr-2" />
+              新建检测规则
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateRule} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rule-name">规则名称</Label>
+              <Input
+                id="rule-name"
+                placeholder="请输入规则名称"
+                value={newRuleForm.name}
+                onChange={(e) => setNewRuleForm(prev => ({ ...prev, name: e.target.value }))}
+                disabled={createRuleMutation.isPending}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rule-description">规则描述</Label>
+              <Input
+                id="rule-description"
+                placeholder="请输入规则描述"
+                value={newRuleForm.description}
+                onChange={(e) => setNewRuleForm(prev => ({ ...prev, description: e.target.value }))}
+                disabled={createRuleMutation.isPending}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rule-type">规则类型</Label>
+              <Select 
+                value={newRuleForm.ruleType} 
+                onValueChange={(value) => setNewRuleForm(prev => ({ ...prev, ruleType: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择规则类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="traffic">流量监控</SelectItem>
+                  <SelectItem value="security">安全检测</SelectItem>
+                  <SelectItem value="performance">性能监控</SelectItem>
+                  <SelectItem value="network">网络异常</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rule-severity">严重级别</Label>
+              <Select 
+                value={newRuleForm.severity} 
+                onValueChange={(value: "low" | "medium" | "high") => setNewRuleForm(prev => ({ ...prev, severity: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择严重级别" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">低危</SelectItem>
+                  <SelectItem value="medium">中危</SelectItem>
+                  <SelectItem value="high">高危</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rule-conditions">检测条件 (JSON格式)</Label>
+              <Input
+                id="rule-conditions"
+                placeholder='例如: {"threshold": "100MB/min", "protocol": "tcp"}'
+                value={newRuleForm.conditions}
+                onChange={(e) => setNewRuleForm(prev => ({ ...prev, conditions: e.target.value }))}
+                disabled={createRuleMutation.isPending}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowNewRuleDialog(false)}
+                disabled={createRuleMutation.isPending}
+              >
+                取消
+              </Button>
+              <Button 
+                type="submit"
+                disabled={createRuleMutation.isPending}
+              >
+                {createRuleMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    创建中...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    创建规则
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
