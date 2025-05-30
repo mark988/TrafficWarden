@@ -182,7 +182,6 @@ export default function Landing() {
 
               <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
                 <p>系统状态: <span className="text-green-600 dark:text-green-400">正常运行</span> | 版本: TADS v2.1</p>
-                <p className="mt-1 font-medium text-sm">默认账户: admin / 123456</p>
               </div>
             </CardContent>
           </Card>
