@@ -406,6 +406,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/detection-rules/:id/toggle", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      if (currentUser?.role !== "admin" && currentUser?.role !== "operator") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const ruleId = parseInt(req.params.id);
+      const { isActive } = req.body;
+      
+      const updatedRule = await storage.updateDetectionRule(ruleId, { isActive });
+      
+      await storage.createAuditLog({
+        userId: req.user?.claims?.sub,
+        action: isActive ? "ENABLE_DETECTION_RULE" : "DISABLE_DETECTION_RULE",
+        resource: "detection_rule",
+        resourceId: ruleId.toString(),
+        details: { ruleName: updatedRule.name, newStatus: isActive },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error toggling detection rule:", error);
+      res.status(500).json({ message: "Failed to toggle detection rule" });
+    }
+  });
+
+  app.put("/api/detection-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      if (currentUser?.role !== "admin" && currentUser?.role !== "operator") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const ruleId = parseInt(req.params.id);
+      const validatedData = insertDetectionRuleSchema.parse(req.body);
+      
+      const updatedRule = await storage.updateDetectionRule(ruleId, validatedData);
+      
+      await storage.createAuditLog({
+        userId: req.user?.claims?.sub,
+        action: "UPDATE_DETECTION_RULE",
+        resource: "detection_rule",
+        resourceId: ruleId.toString(),
+        details: { ruleName: updatedRule.name },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error updating detection rule:", error);
+      res.status(500).json({ message: "Failed to update detection rule" });
+    }
+  });
+
+  app.delete("/api/detection-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user?.claims?.sub);
+      if (currentUser?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const ruleId = parseInt(req.params.id);
+      await storage.deleteDetectionRule(ruleId);
+      
+      await storage.createAuditLog({
+        userId: req.user?.claims?.sub,
+        action: "DELETE_DETECTION_RULE",
+        resource: "detection_rule",
+        resourceId: ruleId.toString(),
+        details: {},
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting detection rule:", error);
+      res.status(500).json({ message: "Failed to delete detection rule" });
+    }
+  });
+
   // Audit logs routes
   app.get("/api/audit-logs", isAuthenticated, async (req, res) => {
     try {
