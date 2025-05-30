@@ -79,6 +79,82 @@ export default function AlertManagement() {
     },
   });
 
+  // 导出功能
+  const exportAlerts = async () => {
+    setIsExporting(true);
+    setExportProgress(0);
+    setShowExportDialog(true);
+
+    try {
+      // 模拟导出进度
+      const steps = [
+        { progress: 20, message: "正在获取告警数据..." },
+        { progress: 40, message: "正在处理数据格式..." },
+        { progress: 60, message: "正在生成CSV文件..." },
+        { progress: 80, message: "正在准备下载..." },
+        { progress: 100, message: "导出完成！" }
+      ];
+
+      for (const step of steps) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setExportProgress(step.progress);
+      }
+
+      // 获取当前筛选的告警数据用于导出
+      const currentAlerts = alerts || [];
+      
+      // 创建CSV内容
+      const csvContent = [
+        // CSV表头
+        ['ID', '标题', '描述', '严重程度', '状态', '来源IP', '创建时间', '处理时间'].join(','),
+        // CSV数据行
+        ...currentAlerts.map((alert: any) => [
+          alert.id,
+          `"${alert.title}"`,
+          `"${alert.description}"`,
+          alert.severity === 'high' ? '高危' : alert.severity === 'medium' ? '中危' : '低危',
+          alert.status === 'pending' ? '未处理' : alert.status === 'processing' ? '处理中' : alert.status === 'resolved' ? '已处理' : '已忽略',
+          alert.sourceIp || '',
+          new Date(alert.createdAt).toLocaleString('zh-CN'),
+          alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString('zh-CN') : ''
+        ].join(','))
+      ].join('\n');
+
+      // 创建下载链接
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `告警数据_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "导出成功",
+        description: `已成功导出 ${currentAlerts.length} 条告警数据到CSV文件`,
+      });
+
+      // 延迟关闭对话框，让用户看到完成状态
+      setTimeout(() => {
+        setShowExportDialog(false);
+        setIsExporting(false);
+        setExportProgress(0);
+      }, 1500);
+
+    } catch (error: any) {
+      setIsExporting(false);
+      setShowExportDialog(false);
+      setExportProgress(0);
+      toast({
+        title: "导出失败",
+        description: error.message || "导出告警数据时发生错误",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getSeverityBadge = (severity: string) => {
     const variants = {
       high: { className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", label: "高危" },
@@ -155,9 +231,17 @@ export default function AlertManagement() {
                 <Plus className="w-4 h-4 mr-2" />
                 新建规则
               </Button>
-              <Button variant="outline">
-                <Download className="w-4 h-4 mr-2" />
-                导出
+              <Button 
+                variant="outline" 
+                onClick={exportAlerts}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {isExporting ? "导出中..." : "导出"}
               </Button>
             </div>
           </div>
@@ -297,6 +381,37 @@ export default function AlertManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 导出进度对话框 */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Download className="w-5 h-5 mr-2" />
+              导出告警数据
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>
+                {exportProgress === 100 ? "导出完成！" : 
+                 exportProgress >= 80 ? "正在准备下载..." :
+                 exportProgress >= 60 ? "正在生成CSV文件..." :
+                 exportProgress >= 40 ? "正在处理数据格式..." :
+                 exportProgress >= 20 ? "正在获取告警数据..." : "准备导出..."}
+              </span>
+              <span>{exportProgress}%</span>
+            </div>
+            <Progress value={exportProgress} className="w-full" />
+            {exportProgress === 100 && (
+              <div className="flex items-center text-sm text-green-600 dark:text-green-400">
+                <Check className="w-4 h-4 mr-2" />
+                文件已成功下载到您的设备
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
