@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Search, Download, CalendarIcon, Filter } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { FileText, Search, Download, CalendarIcon, Filter, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 export default function LogAudit() {
@@ -17,6 +18,9 @@ export default function LogAudit() {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const queryClient = useQueryClient();
 
   const { data: auditLogs, isLoading } = useQuery({
     queryKey: ["/api/audit-logs", { 
@@ -63,21 +67,50 @@ export default function LogAudit() {
     return <Badge className={color}>{label}</Badge>;
   };
 
-  const exportLogs = () => {
-    // Implement export functionality
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + "时间,用户,操作,资源,IP地址,详情\n"
-      + (auditLogs || []).map((log: any) => 
-          `${new Date(log.timestamp).toLocaleString('zh-CN')},${log.userId || '系统'},${log.action},${log.resource},${log.ipAddress || ''},${JSON.stringify(log.details || {})}`
-        ).join("\n");
+  const exportLogs = async () => {
+    setIsExporting(true);
+    setExportProgress(0);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `audit_logs_${format(new Date(), "yyyy-MM-dd")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 模拟导出进度
+    const progressInterval = setInterval(() => {
+      setExportProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 200);
+
+    try {
+      // 模拟处理时间
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + "时间,用户,操作,资源,IP地址,详情\n"
+        + (auditLogs || []).map((log: any) => 
+            `${new Date(log.timestamp).toLocaleString('zh-CN')},${log.userId || '系统'},${log.action},${log.resource},${log.ipAddress || ''},${JSON.stringify(log.details || {})}`
+          ).join("\n");
+
+      setExportProgress(100);
+      
+      // 短暂延迟以显示100%完成
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `audit_logs_${format(new Date(), "yyyy-MM-dd")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } finally {
+      clearInterval(progressInterval);
+      setTimeout(() => {
+        setIsExporting(false);
+        setExportProgress(0);
+      }, 1000);
+    }
   };
 
   if (isLoading) {
