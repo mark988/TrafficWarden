@@ -56,7 +56,7 @@ export default function Landing() {
             <Shield className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            异常流量监控系统
+            兴畅大规模时变网络异常流量监控系统
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-1">
             Traffic Anomaly Detection System
